@@ -2,8 +2,8 @@ CC = gcc
 
 CFLAGS = -Iinclude
 
-SRC = src/main.c
-DEPS = include/config.h
+SRC = src/main.c src/exec.c
+DEPS = include/config.h include/exec.h
 
 myshell: $(SRC) $(DEPS)
 	$(CC) $(CFLAGS) -o myshell $(SRC)

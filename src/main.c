@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 #include "config.h"
+#include "exec.h"
 
 /*** declarations ***/
 void main_loop();
 char* shell_read_line();
 char** shell_split_line(const char*, int*);
-int fatal(char*);
 
 /*** init ***/
 int main(void) {
@@ -28,11 +28,9 @@ void main_loop() {
     printf("> ");
     line = shell_read_line();
     tokens = shell_split_line(line, &arg);
+    execution(tokens);
 
-    for (int i = 0; i < arg; i++) {
-        printf("%s\n", tokens[i]);
-        free(tokens[i]);
-    }
+    for (int i = 0; i < arg; i++) free(tokens[i]);
 
     free(line);
     free(tokens);
@@ -85,8 +83,3 @@ char** shell_split_line(const char* line, int* arg) {
 }
 
 
-/*** error ***/
-int fatal(char* s) {
-    perror(s);
-    exit(EXIT_FAILURE);
-}
