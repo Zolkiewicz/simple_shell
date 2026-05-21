@@ -6,8 +6,8 @@
 #include "exec.h"
 
 /*** declarations ***/
-void main_loop();
-char* shell_read_line();
+void main_loop(void);
+char* shell_read_line(void);
 char** shell_split_line(const char*, int*);
 
 /*** init ***/
@@ -18,17 +18,16 @@ int main(void) {
     return 0; 
 }
 
-/*** implementation ***/
-void main_loop() {
-    int status = 1;
+/*** main_loop ***/
+void main_loop(void) {
     char* line = NULL;
     char** tokens = NULL;
     int arg = 0;
-
+    shell_info();
     printf("> ");
     line = shell_read_line();
     tokens = shell_split_line(line, &arg);
-    execution(tokens);
+    shell_execution(tokens);
 
     for (int i = 0; i < arg; i++) free(tokens[i]);
 
@@ -36,7 +35,8 @@ void main_loop() {
     free(tokens);
 }
 
-char* shell_read_line() {
+/*** input ***/
+char* shell_read_line(void) {
     size_t buf_size = LINE_LEN_BUFSIZE;
     char* buffer = malloc(buf_size * sizeof(char));
     if (buffer == NULL) fatal("Allocation error.");

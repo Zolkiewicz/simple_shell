@@ -2,6 +2,7 @@
 #define EXEC_H
 
 int fatal(char*);
-void execution(char**);
+void shell_info(void);
+void shell_execution(char**);
 
 #endif //EXEC_H
