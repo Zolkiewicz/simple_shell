@@ -6,16 +6,23 @@
 #include "exec.h"
 
 /*** declarations ***/
+void clear_screen(void);
 void main_loop(void);
 char* shell_read_line(void);
 char** shell_split_line(const char*, int*);
 
 /*** init ***/
 int main(void) {
-
-    main_loop();
+    clear_screen();
+    while(1)
+        main_loop();
 
     return 0; 
+}
+
+void clear_screen(void) {
+  printf("\x1b[2J");
+  printf("\x1b[H");
 }
 
 /*** main_loop ***/
@@ -47,38 +54,30 @@ char* shell_read_line(void) {
 }
 
 char** shell_split_line(const char* line, int* arg) {
-    const size_t buf_size = TOKENS_BUFSIZE;
-    const size_t len = strlen(line);
-    int position = 0;
+    int buf_size = TOKENS_BUFSIZE;
+    int i = 0;
 
     char** buffer_tok =  malloc(buf_size * sizeof(char*));
     if (buffer_tok == NULL) fatal("Allocation error");
-    
-    while (position < len) {
-        while (position < len && 
-            (line[position] == ' ' || 
-            line[position] == '\t' || 
-            line[position] == '\n')) position++;
-        
-        if (position >= len) break;
 
-        int i = 0;
-        while (position + i < len && 
-            line[position + i] != ' ' && 
-            line[position + i] != '\t' && 
-            line[position + i] != '\n') i++;
-        
-        buffer_tok[*arg] = malloc((i + 1) * sizeof(char));
-        if (buffer_tok[*arg] == NULL) fatal("Allocation error");
+    char* line_copy = strdup(line);
+    if (line_copy == NULL) fatal("Allocation error");
 
-        strncpy(buffer_tok[*arg], &line[position], i);
-        position += i;
-        buffer_tok[*arg][i] = '\0'; 
+    char delimiter[] = " \t\r\n\a";
 
-        if (++(*arg) >= buf_size) 
-            fatal("Too many arguments");
+    char* token = strtok(line_copy, delimiter);
+    while (token) {
+        buffer_tok[i] = strdup(token);
+
+        if (++i >= buf_size) {
+            buf_size += TOKENS_BUFSIZE;
+            buffer_tok = realloc(buffer_tok, buf_size * sizeof(char*));
+            if (buffer_tok == NULL) fatal("Allocation error");
+        }
+        token = strtok(NULL, delimiter);
     }
-    buffer_tok[*arg] = NULL;
+    buffer_tok[i] = NULL;
+    *arg = i;
     return buffer_tok;
 }
 

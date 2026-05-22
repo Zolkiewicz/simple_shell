@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <libgen.h>
 #include <pwd.h>
+#include <string.h>
 
 /*** error ***/
 int fatal(char* s) {
@@ -26,8 +27,43 @@ void shell_info(void) {
     printf("[%s@%s %s]",p->pw_name, host_name, basename(dir_name));
 }
 
-/*** implementation ***/
+/*** build_in_commands */
+char *buildin_str[] = {
+    "cd",
+    "exit"
+};
+
+void (*builin_func[]) (char**) = {
+    &shell_cd,
+    &shell_exit
+};
+
+void shell_cd(char** tokens) {
+    return;
+}
+
+void shell_exit(char** tokens) {
+    exit(EXIT_SUCCESS);
+}
+
+int num_of_builtins(void) {
+  return sizeof(buildin_str) / sizeof(char *);
+}
+
+/*** execution***/
 void shell_execution(char** tokens) {
+    if (tokens[0] == NULL) return;
+    //build ins
+    
+    int num = num_of_builtins();
+    for (int i = 0; i < num; i++) {
+        if (strcmp(tokens[0], buildin_str[i]) == 0) {
+            (*builin_func[i])(tokens);
+            return;
+        }
+    }
+
+    //sys calls
     pid_t pid;
     int status;
 
@@ -35,7 +71,9 @@ void shell_execution(char** tokens) {
 
     if (pid == 0) {
         execvp(tokens[0], tokens);
-        fatal("execlp");
+        fatal(tokens[0]);
     }
-    if ((pid = wait(&status)) == -1) fatal("Wait failed");
+    if (waitpid(pid, &status, 0) == -1) 
+        fatal("Waitpid failed");
+
 }
