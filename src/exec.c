@@ -14,16 +14,25 @@ int fatal(char* s) {
     perror(s);
     exit(EXIT_FAILURE);
 }
+
  /*** output ***/
 void shell_info(void) {
     struct passwd *p;
     char dir_name[200];
     char host_name[200];
 
-    if ((p = getpwuid(getuid())) == NULL) fatal("getpwuid error");
-    if (gethostname(host_name, 200) == -1) fatal("gethostname error");
-    if (getcwd(dir_name, 200) == NULL) fatal("getcwd error");
-    
+    if ((p = getpwuid(getuid())) == NULL) {
+        perror("getpwuid error");
+        return;
+    }
+    if (gethostname(host_name, 200) == -1) {
+        perror("gethostname error");
+        return;
+    }
+    if (getcwd(dir_name, 200) == NULL) {
+        perror("getcwd error");
+        return;
+    }
     printf("[%s@%s %s]",p->pw_name, host_name, basename(dir_name));
 }
 
@@ -39,7 +48,20 @@ void (*builin_func[]) (char**) = {
 };
 
 void shell_cd(char** tokens) {
-    return;
+    if (!tokens[1]) {
+        if (chdir(getenv("HOME")) != 0) 
+            perror("chdir"); 
+        
+        return;
+    }
+    if (tokens[2]) {
+        perror("too many arguments");
+        return;       
+    }
+    if (chdir(tokens[1]) != 0) {
+        perror("chdir");
+        return;
+    }
 }
 
 void shell_exit(char** tokens) {
