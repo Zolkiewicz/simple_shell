@@ -33,6 +33,10 @@ void main_loop(void) {
     shell_info();
     printf("> ");
     line = shell_read_line();
+    if (!line) {
+        printf("\n");
+        exit(EXIT_SUCCESS);
+    }
     tokens = shell_split_line(line, &arg);
     shell_execution(tokens);
 
@@ -48,7 +52,10 @@ char* shell_read_line(void) {
     char* buffer = malloc(buf_size * sizeof(char));
     if (buffer == NULL) fatal("Allocation error.");
 
-    getline(&buffer, &buf_size, stdin);
+    if (getline(&buffer, &buf_size, stdin) == -1) {
+        free(buffer);
+        return NULL;
+    }
 
     return buffer;
 }
@@ -78,6 +85,7 @@ char** shell_split_line(const char* line, int* arg) {
     }
     buffer_tok[i] = NULL;
     *arg = i;
+    free(line_copy);
     return buffer_tok;
 }
 

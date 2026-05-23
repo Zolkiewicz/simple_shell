@@ -55,7 +55,7 @@ void shell_cd(char** tokens) {
         return;
     }
     if (tokens[2]) {
-        perror("too many arguments");
+        printf("cd: too many arguments\n");
         return;       
     }
     if (chdir(tokens[1]) != 0) {
