@@ -5,9 +5,14 @@
 #include "config.h"
 #include "exec.h"
 #include <stdbool.h>
+#include <errno.h>
+#include <setjmp.h> 
+#include <signal.h>
 
+char special [] = {' ', '\t', '&', ';', '\n', '\0'};
 char* line = NULL;
 char** tokens = NULL;
+sigjmp_buf position;
 
 /*** declarations ***/
 void clear_screen(void);
@@ -16,11 +21,29 @@ void shell_read_line(void);
 int shell_get_tok(size_t* len, char* input);
 bool is_arg_char(char c);
 void shell_split_line(void);
+void sigint_handler(int);
 
 /*** init ***/
 int main(void) {
     clear_screen();
-    
+    static struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = sigint_handler;
+    sigaction(SIGINT, &act, NULL);
+
+
+    if (sigsetjmp(position, 1) != 0) {
+        if (tokens != NULL) {
+            for (int i = 0; tokens[i] != NULL; i++) {
+            free(tokens[i]);
+        }
+        free(tokens);
+        tokens = NULL;
+    }
+    free(line);
+    line = NULL;
+    }
+
     while(1) {
         main_loop();
     }
@@ -33,8 +56,17 @@ void clear_screen(void) {
   printf("\x1b[H");
 }
 
+void sigint_handler(int sig) {
+    printf("\n");
+    siglongjmp(position, 1);
+}
+
+
+
 /*** main_loop ***/
 void main_loop(void) {
+    check_background_jobs();
+
     shell_info();
     printf("> ");
     fflush(stdout);
@@ -66,10 +98,17 @@ void shell_read_line(void) {
     size_t buf_size = LINE_LEN_BUFSIZE;
 
     if (getline(&line, &buf_size, stdin) == -1) {
+        if (errno == EINTR) {
+            line = malloc(1);
+            if (line == NULL) fatal("Allocation error");
+            line[0] = '\n';
+            return; 
+        }
         free(line);
         line = NULL;
-    }
+    } 
 }
+
 
 int shell_get_tok(size_t* len, char* input) {
     *len = 0;
@@ -107,8 +146,8 @@ void shell_split_line(void) {
     size_t arg = 0;
     int type;
     int tok_type;
-
-    tokens =  malloc(size * sizeof(char*));
+    
+    tokens = calloc(size, sizeof(char*));
     if (tokens == NULL) 
         fatal("Allocation error");
     tokens[0] = NULL;
@@ -135,19 +174,31 @@ void shell_split_line(void) {
                 arg++;
                 tokens[arg] = NULL;
                 break;
-            case AMPERSAND:
-                if (tok_type == AMPERSAND) type = BACKGROUND;
-                else type = FOREGROUND;
-            case EOL:
-                if (EOL) pos = NULL;
-                else pos++;
             case SEMICOLON:
                 if (arg != 0) {
                     tokens[arg] = NULL;
-                    shell_execution(tokens);
+                    shell_execution(tokens, FOREGROUND);
                 }
-
                 arg = 0;
+                pos++;
+                break;
+
+            case AMPERSAND:
+                if (arg != 0) {
+                    tokens[arg] = NULL;
+                    shell_execution(tokens, BACKGROUND);
+                }
+                arg = 0;
+                pos++;
+                break;
+
+            case EOL:
+                if (arg != 0) {
+                    tokens[arg] = NULL;
+                    shell_execution(tokens, FOREGROUND);
+                }
+                arg = 0;
+                pos = NULL;
                 break;
         }
     }

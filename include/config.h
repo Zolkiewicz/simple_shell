@@ -12,6 +12,5 @@
 #define AMPERSAND 3
 #define SEMICOLON 4
 
-static char special [] = {' ', '\t', '&', ';', '\n', '\0'};
-
+#define MAX_JOBS 64
 #endif //CONFIG_H
