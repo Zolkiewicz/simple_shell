@@ -120,6 +120,8 @@ int shell_get_tok(size_t* len, char* input) {
             return AMPERSAND;
         case ';':
             return SEMICOLON;
+        case '|':
+            return PIPE;
         default:
             (*len)++;
             while (is_arg_char(input[*len])) 
@@ -146,7 +148,9 @@ void shell_split_line(void) {
     size_t arg = 0;
     int type;
     int tok_type;
-    
+    Pipeline pipeline;
+    pipeline.cmd_count = 0;
+
     tokens = calloc(size, sizeof(char*));
     if (tokens == NULL) 
         fatal("Allocation error");
@@ -174,31 +178,46 @@ void shell_split_line(void) {
                 arg++;
                 tokens[arg] = NULL;
                 break;
+            case PIPE:
+                if (arg != 0) {
+                    tokens[arg] = NULL;
+                    pipeline.commands[pipeline.cmd_count++] = tokens;
+                    size = TOKENS_SIZE;
+                    tokens = calloc(size, sizeof(char*));
+                    if (tokens == NULL) fatal("Allocation error");
+                    arg = 0;
+                }
+                pos++;
+                break;
             case SEMICOLON:
-                if (arg != 0) {
-                    tokens[arg] = NULL;
-                    shell_execution(tokens, FOREGROUND);
-                }
-                arg = 0;
-                pos++;
-                break;
-
             case AMPERSAND:
-                if (arg != 0) {
-                    tokens[arg] = NULL;
-                    shell_execution(tokens, BACKGROUND);
-                }
-                arg = 0;
-                pos++;
-                break;
-
             case EOL:
                 if (arg != 0) {
                     tokens[arg] = NULL;
-                    shell_execution(tokens, FOREGROUND);
+                    pipeline.commands[pipeline.cmd_count++] = tokens;
                 }
+
+                if (pipeline.cmd_count > 0) {
+                    int exec_type = (tok_type == AMPERSAND) ? BACKGROUND : FOREGROUND;
+
+                    if (pipeline.cmd_count == 1) {
+                        shell_execution(pipeline.commands[0], exec_type);
+                    } else {
+                        shell_execution_pipe(pipeline, exec_type);
+                    }
+                    for (int c = 0; c < pipeline.cmd_count; c++) {
+                        for (int i = 0; pipeline.commands[c][i] != NULL; i++) {
+                            free(pipeline.commands[c][i]);
+                        }
+                        free(pipeline.commands[c]);
+                    }
+                    pipeline.cmd_count = 0;
+                }
+                tokens = NULL; 
                 arg = 0;
-                pos = NULL;
+
+                if (tok_type == EOL) pos = NULL;
+                else pos++;
                 break;
         }
     }

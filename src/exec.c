@@ -141,3 +141,62 @@ void check_background_jobs(void) {
         }
     }
 }
+
+/*** execution***/
+void shell_execution_pipe(Pipeline pipeline, int type) {
+    int p[2];
+    int pipe_in = 0;
+    pid_t pid;
+    pid_t last_pid;
+
+    for (int i = 0; i < pipeline.cmd_count; i++) {
+        if (i < pipeline.cmd_count - 1) {
+            if (pipe(p) == -1) {
+                fatal("pipe");
+            }
+        }
+
+        if ((pid = fork()) < 0) fatal("Invalid process");
+
+        if (pid == 0) {
+
+            if (i > 0) {
+                dup2(pipe_in, STDIN_FILENO);
+                close(pipe_in);
+            }
+
+            if (i < pipeline.cmd_count - 1) {
+                dup2(p[1], STDOUT_FILENO);
+                close(p[0]);
+                close(p[1]);
+            }
+            execvp(pipeline.commands[i][0], pipeline.commands[i]);
+            fatal(pipeline.commands[i][0]);
+        }
+        if (i > 0) {
+            close(pipe_in);
+        }
+        if (i < pipeline.cmd_count - 1) {
+            close(p[1]);
+            pipe_in = p[0];
+        }
+        last_pid = pid;
+    }
+
+    if (type == FOREGROUND) {
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            fatal("Waitpid failed");
+        }
+    } else if (type == BACKGROUND) {
+        if (job_count < MAX_JOBS) {
+            bg_jobs[job_count].id = next_job_id;
+            bg_jobs[job_count].pid = pid;
+            snprintf(bg_jobs[job_count].command, sizeof(bg_jobs[job_count].command), "Pipeline (%d commands)", pipeline.cmd_count);
+            job_count++;
+            next_job_id++;
+        } else {
+            printf("Shell error: Too many background jobs\n");
+        }
+    }
+}
